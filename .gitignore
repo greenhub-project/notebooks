@@ -136,6 +136,8 @@ src
 .idea/
 Read the Docs
 config.rst
+*.zip
+*.csv
 
 /.project
 /.pydevproject
