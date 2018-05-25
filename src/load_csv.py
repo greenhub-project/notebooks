@@ -3,7 +3,7 @@
 import sys
 import numpy as np
 import pandas as pd
-from utils import mem_usage, cache_dtypes, save_dtypes
+from utils import mem_usage, cache_dtypes, save_dtypes, save_df
 
 
 def main():
@@ -12,6 +12,7 @@ def main():
             raise IOError('Dataset missing!')
 
         gl = pd.read_csv(sys.argv[1])
+        print('Before:', mem_usage(gl))
         gl.info(memory_usage='deep')
 
         # downcast integer columns
@@ -43,11 +44,13 @@ def main():
         optimized_gl[converted_float.columns] = converted_float
         optimized_gl[converted_obj.columns] = converted_obj
 
-        print('Before:', mem_usage(gl))
-        print('After:', mem_usage(optimized_gl))
+        print('\nAfter:', mem_usage(optimized_gl))
+        optimized_gl.info(memory_usage='deep')
 
-        fcache = sys.argv[1].split('.')[0] + '.pkl'
-        save_dtypes(cache_dtypes(optimized_gl), fcache)
+        fname = sys.argv[1].split('.')[0]
+
+        save_dtypes(cache_dtypes(optimized_gl), fname + '.pkl')
+        save_df(optimized_gl, fname + '.parquet.gzip')
     except Exception as e:
         print(e)
 

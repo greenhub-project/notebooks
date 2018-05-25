@@ -29,12 +29,20 @@ def cache_dtypes(df, ignored=[]):
     return dict(zip(dtypes_col, dtypes_type))
 
 
-def save_dtypes(dtypes, filename):
-    with open(filename, 'wb') as handle:
+def save_dtypes(dtypes, path):
+    with open(path, 'wb') as handle:
         pickle.dump(dtypes, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    print(filename, 'created!')
+    print(path, 'created!')
 
 
-def load_dtypes(filename):
-    with open(filename, 'rb') as handle:
+def load_dtypes(path):
+    with open(path, 'rb') as handle:
         return pickle.load(handle)
+
+
+def save_df(df, path, compression='gzip'):
+    try:
+        df.to_parquet(path, compression=compression)
+        print(path, 'created!')
+    except Exception as e:
+        print(e)

@@ -137,6 +137,8 @@ Read the Docs
 config.rst
 *.zip
 *.csv
+*.pkl
+*.parquet*
 
 /.project
 /.pydevproject
