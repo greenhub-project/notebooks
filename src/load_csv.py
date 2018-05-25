@@ -3,7 +3,7 @@
 import sys
 import numpy as np
 import pandas as pd
-from utils import mem_usage, cache_dtypes, save_dtypes, save_df
+from utils import load_dtypes
 
 
 def main():
@@ -11,46 +11,11 @@ def main():
         if len(sys.argv) < 2:
             raise IOError('Dataset missing!')
 
-        gl = pd.read_csv(sys.argv[1])
-        print('Before:', mem_usage(gl))
+        dname = sys.argv[1].split('.')[0] + '.pkl'
+
+        # cannot parse dates!
+        gl = pd.read_csv(sys.argv[1], dtype=load_dtypes(dname))
         gl.info(memory_usage='deep')
-
-        # downcast integer columns
-        gl_int = gl.select_dtypes(include=['int'])
-        converted_int = gl_int.apply(pd.to_numeric, downcast='unsigned')
-
-        # downcast float columns
-        gl_float = gl.select_dtypes(include=['float'])
-        converted_float = gl_float.apply(pd.to_numeric, downcast='float')
-
-        # convert object columns to lowercase
-        gl_obj = gl.select_dtypes(include=['object'])
-        gl_obj = gl_obj.apply(lambda x: x.str.lower())
-
-        # convert object to category columns
-        # when unique values < 50% of total
-        converted_obj = pd.DataFrame()
-        for col in gl_obj.columns:
-            num_unique_values = len(gl_obj[col].unique())
-            num_total_values = len(gl_obj[col])
-            if num_unique_values / num_total_values < 0.5:
-                converted_obj.loc[:, col] = gl_obj[col].astype('category')
-            else:
-                converted_obj.loc[:, col] = gl_obj[col]
-
-        # transform optimized types
-        optimized_gl = gl.copy()
-        optimized_gl[converted_int.columns] = converted_int
-        optimized_gl[converted_float.columns] = converted_float
-        optimized_gl[converted_obj.columns] = converted_obj
-
-        print('\nAfter:', mem_usage(optimized_gl))
-        optimized_gl.info(memory_usage='deep')
-
-        fname = sys.argv[1].split('.')[0]
-
-        save_dtypes(cache_dtypes(optimized_gl), fname + '.pkl')
-        save_df(optimized_gl, fname + '.parquet.gzip')
     except Exception as e:
         print(e)
 

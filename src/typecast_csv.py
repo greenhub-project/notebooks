@@ -3,28 +3,24 @@
 import sys
 import numpy as np
 import pandas as pd
-from utils import mem_usage, save_df
+from utils import mem_usage, cache_dtypes, save_dtypes, save_df
 
 
 def main():
     try:
-        gl = pd.read_csv('samples.csv',
-                         usecols=['sample_id', 'device_id', 'timestamp', 'battery_state', 'battery_level', 'bluetooth_enabled',
-                                  'location_enabled', 'power_saver_enabled', 'flashlight_enabled', 'nfc_enabled', 'unknown_sources', 'developer_mode'],
-                         parse_dates=['timestamp'])
-        print('Before:', mem_usage(gl))
+        if len(sys.argv) < 2:
+            raise IOError('Dataset missing!')
 
-        # explicitly cast battery level to integer
-        gl_level = gl.battery_level * 100
-        converted_level = gl_level.astype(np.int8)
+        gl = pd.read_csv(sys.argv[1])
+        print('Before:', mem_usage(gl))
+        gl.info(memory_usage='deep')
 
         # downcast integer columns
         gl_int = gl.select_dtypes(include=['int'])
         converted_int = gl_int.apply(pd.to_numeric, downcast='unsigned')
 
         # downcast float columns
-        gl_float = gl.select_dtypes(
-            include=['float']).drop('battery_level', axis=1)
+        gl_float = gl.select_dtypes(include=['float'])
         converted_float = gl_float.apply(pd.to_numeric, downcast='float')
 
         # convert object columns to lowercase
@@ -47,11 +43,14 @@ def main():
         optimized_gl[converted_int.columns] = converted_int
         optimized_gl[converted_float.columns] = converted_float
         optimized_gl[converted_obj.columns] = converted_obj
-        optimized_gl['battery_level'] = converted_level
 
-        print('After:', mem_usage(optimized_gl))
+        print('\nAfter:', mem_usage(optimized_gl))
+        optimized_gl.info(memory_usage='deep')
 
-        save_df(optimized_gl, 'samples.parquet.gzip')
+        fname = sys.argv[1].split('.')[0]
+
+        save_dtypes(cache_dtypes(optimized_gl), fname + '.pkl')
+        save_df(optimized_gl, fname + '.parquet.gzip')
     except Exception as e:
         print(e)
 
