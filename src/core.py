@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
-import numpy as np
-import pandas as pd
-
+from utils import load_df
 
 def main():
     try:
-        gl = pd.read_parquet('samples.parquet.gzip')
+        gl = load_df('samples.parquet')
+        gl.info(memory_usage='deep')
     except Exception as e:
         print(e)
 

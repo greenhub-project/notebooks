@@ -40,9 +40,16 @@ def load_dtypes(path):
         return pickle.load(handle)
 
 
-def save_df(df, path, compression='gzip'):
+def save_df(df, path, compression='snappy', use_dictionary=True):
     try:
-        df.to_parquet(path, compression=compression)
+        df.to_parquet(path, compression=compression,
+                      use_dictionary=use_dictionary)
         print(path, 'created!')
+    except Exception as e:
+        print(e)
+
+def load_df(path, nthreads=4):
+    try:
+        return pd.read_parquet(path, nthreads=nthreads)
     except Exception as e:
         print(e)

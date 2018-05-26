@@ -39,18 +39,17 @@ def main():
                 converted_obj.loc[:, col] = gl_obj[col]
 
         # transform optimized types
-        optimized_gl = gl.copy()
-        optimized_gl[converted_int.columns] = converted_int
-        optimized_gl[converted_float.columns] = converted_float
-        optimized_gl[converted_obj.columns] = converted_obj
+        gl[converted_int.columns] = converted_int
+        gl[converted_float.columns] = converted_float
+        gl[converted_obj.columns] = converted_obj
 
-        print('\nAfter:', mem_usage(optimized_gl))
-        optimized_gl.info(memory_usage='deep')
+        print('\nAfter:', mem_usage(gl))
+        gl.info(memory_usage='deep')
 
         fname = sys.argv[1].split('.')[0]
 
-        save_dtypes(cache_dtypes(optimized_gl), fname + '.pkl')
-        save_df(optimized_gl, fname + '.parquet.gzip')
+        save_dtypes(cache_dtypes(gl), fname + '.pkl')
+        save_df(gl, fname + '.parquet')
     except Exception as e:
         print(e)
 

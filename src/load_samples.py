@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 import numpy as np
 import pandas as pd
 from utils import mem_usage, save_df
@@ -43,15 +42,14 @@ def main():
                 converted_obj.loc[:, col] = gl_obj[col]
 
         # transform optimized types
-        optimized_gl = gl.copy()
-        optimized_gl[converted_int.columns] = converted_int
-        optimized_gl[converted_float.columns] = converted_float
-        optimized_gl[converted_obj.columns] = converted_obj
-        optimized_gl['battery_level'] = converted_level
+        gl[converted_int.columns] = converted_int
+        gl[converted_float.columns] = converted_float
+        gl[converted_obj.columns] = converted_obj
+        gl['battery_level'] = converted_level
 
-        print('After:', mem_usage(optimized_gl))
+        print('After:', mem_usage(gl))
 
-        save_df(optimized_gl, 'samples.parquet.gzip')
+        save_df(gl, 'samples.parquet')
     except Exception as e:
         print(e)
 
