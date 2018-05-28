@@ -2,6 +2,7 @@
 
 import pickle
 import pandas as pd
+import pyarrow.parquet as pq
 
 
 def average_mem_type(df):
@@ -40,6 +41,28 @@ def load_dtypes(path):
         return pickle.load(handle)
 
 
+def typecast_ints(gl_int):
+    return gl_int.apply(pd.to_numeric, downcast='unsigned')
+
+
+def typecast_floats(gl_float):
+    return gl_float.apply(pd.to_numeric, downcast='float')
+
+
+def typecast_objects(gl_obj):
+    # convert object to category columns
+    # when unique values < 50% of total
+    converted_obj = pd.DataFrame()
+    for col in gl_obj.columns:
+        num_unique_values = len(gl_obj[col].unique())
+        num_total_values = len(gl_obj[col])
+        if num_unique_values / num_total_values < 0.5:
+            converted_obj.loc[:, col] = gl_obj[col].astype('category')
+        else:
+            converted_obj.loc[:, col] = gl_obj[col]
+    return converted_obj
+
+
 def save_df(df, path, compression='snappy', use_dictionary=True):
     try:
         df.to_parquet(path, compression=compression,
@@ -48,8 +71,10 @@ def save_df(df, path, compression='snappy', use_dictionary=True):
     except Exception as e:
         print(e)
 
-def load_df(path, nthreads=4):
+
+def load_df(path, columns=None, nthreads=4, strings_to_categorical=True):
     try:
-        return pd.read_parquet(path, nthreads=nthreads)
+        table = pq.read_table(path, columns=columns, nthreads=nthreads)
+        return table.to_pandas(strings_to_categorical=strings_to_categorical)
     except Exception as e:
         print(e)

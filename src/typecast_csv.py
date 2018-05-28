@@ -3,7 +3,7 @@
 import sys
 import numpy as np
 import pandas as pd
-from utils import mem_usage, cache_dtypes, save_dtypes, save_df
+from utils import *
 
 
 def main():
@@ -16,12 +16,10 @@ def main():
         gl.info(memory_usage='deep')
 
         # downcast integer columns
-        gl_int = gl.select_dtypes(include=['int'])
-        converted_int = gl_int.apply(pd.to_numeric, downcast='unsigned')
+        converted_int = typecast_ints(gl.select_dtypes(include=['int']))
 
         # downcast float columns
-        gl_float = gl.select_dtypes(include=['float'])
-        converted_float = gl_float.apply(pd.to_numeric, downcast='float')
+        converted_float = typecast_floats(gl.select_dtypes(include=['float']))
 
         # convert object columns to lowercase
         gl_obj = gl.select_dtypes(include=['object'])
@@ -29,14 +27,7 @@ def main():
 
         # convert object to category columns
         # when unique values < 50% of total
-        converted_obj = pd.DataFrame()
-        for col in gl_obj.columns:
-            num_unique_values = len(gl_obj[col].unique())
-            num_total_values = len(gl_obj[col])
-            if num_unique_values / num_total_values < 0.5:
-                converted_obj.loc[:, col] = gl_obj[col].astype('category')
-            else:
-                converted_obj.loc[:, col] = gl_obj[col]
+        converted_obj = typecast_objects(gl_obj)
 
         # transform optimized types
         gl[converted_int.columns] = converted_int

@@ -104,6 +104,7 @@ MANIFEST
 build
 dist
 _build
+apps
 docs/man/*.gz
 docs/source/api/generated
 docs/source/config.rst

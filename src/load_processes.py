@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import pandas as pd
 from utils import save_df
 
@@ -40,19 +41,20 @@ def typecast_chunk(gl):
 
 def main():
     try:
-        cols = ['sample_id', 'name', 'is_system_app', 'version_code']
-        chunks = pd.read_csv('app_processes.csv',
-                             usecols=cols, chunksize=CHUNKSIZE)
+        if len(sys.argv) < 2:
+            raise IOError('Limit arg missing!')
 
-        tf = []
+        limit = int(sys.argv[1]) - 1
 
-        for chunk in chunks:
-            tf.append(typecast_chunk(chunk))
+        chunks = pd.read_csv('app_processes.csv', usecols=[
+                             'sample_id', 'name', 'is_system_app'], chunksize=CHUNKSIZE)
 
-        optimized_gl = pd.concat(tf, ignore_index=True)
+        for i, chunk in enumerate(chunks):
+            filename = 'apps/processes.chunk' + str(i) + '.parquet'
+            save_df(typecast_chunk(chunk), filename)
+            if i > 0 and i == limit:
+                break
 
-        print('\nsaving to file...')
-        save_df(optimized_gl, 'app_processes.parquet.gzip')
     except Exception as e:
         print(e)
 
