@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pickle
+import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
@@ -78,3 +79,9 @@ def load_df(path, columns=None, nthreads=4, strings_to_categorical=True):
         return table.to_pandas(strings_to_categorical=strings_to_categorical)
     except Exception as e:
         print(e)
+
+
+def truth_table(k):
+    x = np.array([0, 1], dtype=np.int8)
+    mesh = np.meshgrid(*([x] * k))
+    return np.vstack([y.flat for y in mesh]).T
