@@ -85,3 +85,8 @@ def truth_table(k):
     x = np.array([0, 1], dtype=np.int8)
     mesh = np.meshgrid(*([x] * k))
     return np.vstack([y.flat for y in mesh]).T
+
+
+def find_match(matrix, vector):
+    (arr,) = (vector == matrix).all(axis=1).nonzero()
+    return arr[0]
