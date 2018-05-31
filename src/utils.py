@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import numba
 import pickle
 import numpy as np
 import pandas as pd
@@ -65,6 +66,9 @@ def typecast_objects(gl_obj):
 
 
 def save_df(df, path, compression='snappy', use_dictionary=True):
+    """
+    Save a pandas DataFrame to a parquet file
+    """
     try:
         df.to_parquet(path, compression=compression,
                       use_dictionary=use_dictionary)
@@ -74,6 +78,9 @@ def save_df(df, path, compression='snappy', use_dictionary=True):
 
 
 def load_df(path, columns=None, nthreads=4, strings_to_categorical=True):
+    """
+    Load a parquet file and returns a pandas DataFrame
+    """
     try:
         table = pq.read_table(path, columns=columns, nthreads=nthreads)
         return table.to_pandas(strings_to_categorical=strings_to_categorical)
@@ -82,11 +89,51 @@ def load_df(path, columns=None, nthreads=4, strings_to_categorical=True):
 
 
 def truth_table(k):
+    """
+    Generate a truth table of dimension (k, k)
+    """
     x = np.array([0, 1], dtype=np.int8)
     mesh = np.meshgrid(*([x] * k))
     return np.vstack([y.flat for y in mesh]).T
 
 
-def find_match(matrix, vector):
-    (arr,) = (vector == matrix).all(axis=1).nonzero()
+def find_row_index(truth_table, vector):
+    """
+    Return the index that matches the given vector with a truth table
+    """
+    (arr,) = (vector == truth_table).all(axis=1).nonzero()
     return arr[0]
+
+
+def pack_comb(haystack):
+    """
+    Return a decimal integer from a byte array
+    """
+    return np.packbits(np.array(haystack, dtype=np.uint8), axis=-1)[0]
+
+
+def unpack_comb(n):
+    """
+    Return a byte array from a decimal integer
+    """
+    return np.unpackbits(np.array([n], dtype=np.uint8))
+
+
+def make_refs(cols):
+    """
+    Return a dictionary from a list
+    """
+    return {k: v for v, k in enumerate(cols)}
+
+
+@numba.jit
+def apply_filter(n):
+    """
+    Apply the filter to the given combination
+    """
+    a = unpack_comb(n)
+
+    # Hardcoded expression
+    return (
+        a[1] == True
+    )

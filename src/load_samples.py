@@ -7,25 +7,25 @@ from utils import mem_usage, typecast_objects, save_df
 
 def main():
     try:
-        cols = ['id', 'device_id', 'timestamp', 'battery_state', 'battery_level', 'network_status', 'screen_brightness', 'screen_on',
-                'bluetooth_enabled', 'location_enabled', 'power_saver_enabled', 'flashlight_enabled', 'nfc_enabled', 'unknown_sources', 'developer_mode']
-
-        bools = ['screen_on', 'bluetooth_enabled', 'location_enabled', 'power_saver_enabled',
-                 'flashlight_enabled', 'nfc_enabled', 'unknown_sources', 'developer_mode']
+        cols = ['device_id', 'timestamp', 'battery_state', 'battery_level', 'network_status', 'screen_brightness', 'screen_on',
+                'bluetooth_enabled', 'location_enabled', 'power_saver_enabled', 'nfc_enabled', 'unknown_sources', 'developer_mode']
 
         gl = pd.read_csv('samples.csv', usecols=cols,
                          parse_dates=['timestamp'])
         print('Before:', mem_usage(gl))
 
+        # sorting
+        gl = gl.sort_values(by=['device_id', 'timestamp'])
+
         # filtering
-        gl = gl[pd.Timestamp('2017-11-01') <= gl.timestamp]
+        gl = gl[pd.Timestamp('2017-10-15') <= gl.timestamp]
 
         # reset indexes
         gl = gl.reset_index(drop=True)
 
         # explicitly cast battery level to integer
         gl_level = gl.battery_level * 100
-        converted_level = gl_level.astype(np.int8)
+        converted_level = gl_level.astype(np.uint8)
 
         # downcast integer columns
         gl_int = gl.select_dtypes(include=['int'])
