@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import numba
 import pickle
 import numpy as np
 import pandas as pd
@@ -126,7 +125,6 @@ def make_refs(cols):
     return {k: v for v, k in enumerate(cols)}
 
 
-@numba.jit
 def apply_filter(n):
     """
     Apply the filter to the given combination

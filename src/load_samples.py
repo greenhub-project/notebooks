@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import numpy as np
 import pandas as pd
 from utils import mem_usage, typecast_objects, save_df
