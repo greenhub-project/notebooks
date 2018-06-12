@@ -16,6 +16,12 @@ $ pipenv install
 $ pipenv shell # activate virtualenv
 ```
 
+### Minimal install
+Alternatively, you can install only the bare minimum dependencies on your local machine. This will only install the requirements for the `src/` files.
+```shell
+$ pip install --user -r src/requirements.txt
+```
+
 ## Editor configuration
 Don't forget to setup the virtualenv path for `python` and `pylint` on your editor.
 
