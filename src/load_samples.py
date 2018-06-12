@@ -15,22 +15,34 @@ def main():
         print('Before:', mem_usage(samples_df))
         print(samples_df.dtypes)
 
+        # filtering
+        samples_df = samples_df[samples_df.timestamp >= pd.Timestamp('2016-1-1')]
+
         # remove duplicate samples
         samples_df.drop_duplicates(subset=['timestamp', 'battery_state', 'battery_level'], inplace=True)
 
         # sorting
         samples_df = samples_df.sort_values(by=['device_id', 'timestamp'])
 
-        # filtering
-        samples_df = samples_df[samples_df.timestamp >= pd.Timestamp('2016-1-1')]
-
         # reset indexes
         samples_df = samples_df.reset_index(drop=True)
 
-        # explicitly cast battery level to integer
+        # change battery level to int
         samples_df['battery_level'] = samples_df['battery_level'] * 100
-        samples_df['battery_level'] = samples_df['battery_level'].astype(np.uint8)
 
+        # add column with service combination ids
+        facts = ['bluetooth_enabled', 'location_enabled', 'power_saver_enabled',
+                 'flashlight_enabled', 'nfc_enabled', 'unknown_sources', 'developer_mode']
+
+        samples_df['service_comb'] = np.packbits(samples_df[facts].values, axis=-1)
+
+        # add column with average time to charge 1% for each row
+        samples_df['time_diff'] = (samples_df['timestamp'].diff().dt.total_seconds()) / abs(samples_df['battery_level'].diff())
+        samples_df.loc[samples_df['battery_state'] != samples_df['battery_state'].shift(), 'time_diff'] = None
+        samples_df.loc[np.isinf(samples_df['time_diff']), 'time_diff'] = None
+
+        #convert battery level to int
+        samples_df['battery_level'] = samples_df['battery_level'].astype(np.uint8)
         # downcast integer columns
         converted_int = typecast_ints(samples_df.select_dtypes(include=['integer']))
 
