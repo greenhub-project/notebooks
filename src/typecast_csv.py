@@ -1,15 +1,21 @@
 import sys
 import numpy as np
 import pandas as pd
-from utils import *
+from utils import mem_usage, save_dtypes, cache_dtypes, save_df, \
+    typecast_ints, typecast_floats, typecast_objects
 
 
 def main():
     try:
-        if len(sys.argv) < 2:
+        argsNum = len(sys.argv)
+        if argsNum < 2:
             raise IOError('Dataset missing!')
 
-        gl = pd.read_csv(sys.argv[1])
+        cols=None
+        if (argsNum == 3):
+            cols = sys.argv[2].split(',')
+
+        gl = pd.read_csv(sys.argv[1], usecols=cols)
         print('Before:', mem_usage(gl))
         gl.info(memory_usage='deep')
 
