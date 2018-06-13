@@ -27,6 +27,7 @@ def main():
 
         # convert object columns to lowercase
         gl_obj = gl.select_dtypes(include=['object'])
+        gl_obj = gl_obj.apply(lambda x: x.str.strip())
         gl_obj = gl_obj.apply(lambda x: x.str.lower())
 
         # convert object to category columns
