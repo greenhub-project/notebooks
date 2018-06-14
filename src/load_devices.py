@@ -14,7 +14,9 @@ def main():
         print('Before:', mem_usage(gl))
         gl.info(memory_usage='deep')
 
-        gl['os_version'] = gl.os_version.str.replace('\\n', '')
+        # remove extra chars
+        haystack = r'.0\\\\n\\\\n\\\\n'
+        gl['os_version'] = gl.os_version.str.replace(haystack, '')
 
         # downcast integer columns
         converted_int = typecast_ints(gl.select_dtypes(include=['int']))
