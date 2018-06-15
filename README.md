@@ -4,6 +4,8 @@
 
 This repository uses [Pipenv](https://docs.pipenv.org/) to manage its dependencies and virtualenv.
 
+Study Case A notebook can be found [here](jupyter/StudyA.ipynb).
+
 ## Prerequisites
 ```shell
 $ pip install --user pipenv

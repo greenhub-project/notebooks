@@ -5,11 +5,19 @@ from utils import mem_usage, typecast_objects, save_df
 
 def main():
     try:
-        cols = ['device_id', 'timestamp', 'battery_state', 'battery_level', 'network_status', 'screen_brightness', 'screen_on',
-                'bluetooth_enabled', 'location_enabled', 'power_saver_enabled', 'nfc_enabled', 'unknown_sources', 'developer_mode']
+        cols = ['device_id', 'timestamp', 'battery_state', 'battery_level',
+                'network_status', 'screen_brightness', 'screen_on']
 
-        gl = pd.read_csv('samples.csv', usecols=cols,
-                         parse_dates=['timestamp'])
+        samples = pd.read_csv('samples.csv', usecols=cols,
+                              parse_dates=['timestamp'])
+
+        cols = ['bluetooth_enabled', 'location_enabled', 'power_saver_enabled',
+                'nfc_enabled', 'unknown_sources', 'developer_mode']
+
+        settings = pd.read_csv('settings.csv', usecols=cols)
+
+        gl = samples.join(settings)
+
         print('Before:', mem_usage(gl))
 
         # sorting
@@ -36,6 +44,7 @@ def main():
 
         # convert object columns to lowercase
         gl_obj = gl.select_dtypes(include=['object'])
+        gl_obj = gl_obj.apply(lambda x: x.str.strip())
         gl_obj = gl_obj.apply(lambda x: x.str.lower())
 
         # convert object to category columns
