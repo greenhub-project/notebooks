@@ -51,6 +51,8 @@ def typecast_floats(gl_float):
 
 
 def typecast_objects(gl_obj):
+    gl_obj = gl_obj.apply(lambda x: x.str.strip())
+    gl_obj = gl_obj.apply(lambda x: x.str.lower())
     # convert object to category columns
     # when unique values < 50% of total
     converted_obj = pd.DataFrame()
