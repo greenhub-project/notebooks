@@ -65,6 +65,9 @@ def main():
         joined_samples.loc[joined_samples['battery_state'] != joined_samples['battery_state'].shift(), 'time_diff'] = None
         joined_samples[joined_samples.battery_state == 'Full'] = full_rows
 
+        #separates samples between devices
+        joined_samples.loc[joined_samples['device_id'] != joined_samples['device_id'].shift(), 'time_diff'] = None
+
         # ------------------------------downcast all types datfarame and crete binary file-----------------------------------
         # special cast battery level
         joined_samples['battery_level'] = joined_samples['battery_level'].astype(np.uint8)

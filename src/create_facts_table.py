@@ -30,18 +30,31 @@ def computeSubsetMean(subset, first_element_index):
     subset_state = subset.at[first_element_index, 'battery_state']
 
     if subset_state == 'charging':
-        if len(subset[subset['time_diff'] > 0]) >= round(len(subset) * 0.9):
-            return np.nanmean(subset['time_diff']), np.nanstd(subset['time_diff'])
+        charge_rows = subset[subset['time_diff'] > 0]
+
+        if len(charge_rows) > round(len(subset) * 0.9):
+            return np.nanmean(charge_rows['time_diff']), np.nanstd(charge_rows['time_diff'])
         else:
             return -1, -1
+
     elif subset_state == 'discharging':
-        if len(subset[subset['time_diff'] < 0]) >= round(len(subset) * 0.9):
-            return np.nanmean(subset['time_diff']), np.nanstd(subset['time_diff'])
+        discharge_rows = subset[subset['time_diff'] < 0]
+
+        if len(discharge_rows) > round(len(subset) * 0.9):
+            return np.nanmean(discharge_rows['time_diff']), np.nanstd(discharge_rows['time_diff'])
         else:
             return -1, -1
+
     else:
-        if (len(subset[subset['time_diff'] < 0]) >= round(len(subset) * 0.9)) or (len(subset[subset['time_diff'] > 0]) >= round(len(subset) * 0.9)):
-            return np.nanmean(subset['time_diff']), np.nanstd(subset['time_diff'])
+        charge_rows = subset[subset['time_diff'] > 0]
+        discharge_rows = subset[subset['time_diff'] < 0]
+
+        if (len(charge_rows) > 0) and (len(charge_rows) > round(len(subset) * 0.9)):
+            return np.nanmean(charge_rows['time_diff']), np.nanstd(charge_rows['time_diff'])
+
+        elif (len(discharge_rows) > 0) and (len(discharge_rows) > round(len(subset) * 0.9)):
+            return np.nanmean(discharge_rows['time_diff']), np.nanstd(discharge_rows['time_diff'])
+
         else:
             return -1, -1
 
