@@ -1,29 +1,7 @@
 import numpy as np
 import pandas as pd
 from itertools import islice
-from utils import load_df, mem_usage, save_df, typecast_objects, typecast_ints, typecast_floats
-
-def downcastDfTypes(df):
-    # downcast integer columns
-    converted_int = typecast_ints(df.select_dtypes(include=['integer']))
-
-    # downcast float columns
-    converted_float = typecast_floats(df.select_dtypes(include=['float']))
-
-    # convert object columns to lowercase
-    df_obj = df.select_dtypes(include=['object'])
-    df_obj = df_obj.apply(lambda x: x.str.lower())
-
-    # convert object to category columns
-    # when unique values < 50% of total
-    converted_obj = typecast_objects(df_obj)
-
-    # transform optimized types
-    df[converted_int.columns] = converted_int
-    df[converted_float.columns] = converted_float
-    df[converted_obj.columns] = converted_obj
-
-    return df
+from utils import load_df, save_df, downcastDfTypes
 
 
 def computeSubsetMean(subset, first_element_index):
@@ -32,18 +10,18 @@ def computeSubsetMean(subset, first_element_index):
     if subset_state == 'charging':
         charge_rows = subset[subset['time_diff'] > 0]
 
-        if len(charge_rows) > round(len(subset) * 0.9):
-            return np.nanmean(charge_rows['time_diff']), np.nanstd(charge_rows['time_diff'])
-        else:
+        if len(charge_rows.index) == 0:
             return -1, -1
+        else:
+            return np.nanmean(charge_rows['time_diff']), np.nanstd(charge_rows['time_diff'])
 
     elif subset_state == 'discharging':
         discharge_rows = subset[subset['time_diff'] < 0]
 
-        if len(discharge_rows) > round(len(subset) * 0.9):
-            return np.nanmean(discharge_rows['time_diff']), np.nanstd(discharge_rows['time_diff'])
-        else:
+        if len(discharge_rows.index) == 0:
             return -1, -1
+        else:
+            return np.nanmean(discharge_rows['time_diff']), np.nanstd(discharge_rows['time_diff'])
 
     else:
         charge_rows = subset[subset['time_diff'] > 0]
@@ -84,15 +62,27 @@ def computeSubsets(samples_df, facts_table):
 
     for ind, v in islice(samples_df['time_diff'].iteritems(), 1, None):
         if np.isnan(v):
-            subset = samples_df[previous_index:ind]
+            subset = samples_df[previous_index:ind].copy()
 
             if len(subset) >= 10:
+                subset.loc[abs(subset['time_diff']) > 3600, 'time_diff'] = None
                 mean, std = computeSubsetMean(subset, previous_index)
 
-                if mean != -1:
+                if (mean != -1) and not np.isnan(mean):
                     buildFactsTable(subset, facts_table, previous_index, mean, std)
 
             previous_index = ind
+
+    #final samples
+    subset = samples_df[previous_index:len(samples_df)].copy()
+
+    if len(subset) >= 10:
+        subset.loc[abs(subset['time_diff']) > 3600, 'time_diff'] = None
+
+        mean, std = computeSubsetMean(subset, previous_index)
+
+        if (mean != -1) and not np.isnan(mean):
+            buildFactsTable(subset, facts_table, previous_index, mean, std)
 
 
 def main():

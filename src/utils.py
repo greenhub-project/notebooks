@@ -5,42 +5,6 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 
-def average_mem_type(df):
-    for dtype in ['float', 'int', 'object']:
-        selected_dtype = df.select_dtypes(include=[dtype])
-        mean_usage_b = selected_dtype.memory_usage(deep=True).mean()
-        mean_usage_mb = mean_usage_b / 1024 ** 2
-        print("Average memory usage for {} columns: {:03.2f} MB".format(
-            dtype, mean_usage_mb))
-
-
-def mem_usage(pandas_obj):
-    if isinstance(pandas_obj, pd.DataFrame):
-        usage_b = pandas_obj.memory_usage(deep=True).sum()
-    else:  # we assume if not a df it's a series
-        usage_b = pandas_obj.memory_usage(deep=True)
-    usage_mb = usage_b / 1024 ** 2  # convert bytes to megabytes
-    return "{:03.2f} MB".format(usage_mb)
-
-
-def cache_dtypes(df, ignored=[]):
-    dtypes = df.drop(ignored, axis=1).dtypes
-    dtypes_col = dtypes.index
-    dtypes_type = [i.name for i in dtypes.values]
-    return dict(zip(dtypes_col, dtypes_type))
-
-
-def save_dtypes(dtypes, path):
-    with open(path, 'wb') as handle:
-        pickle.dump(dtypes, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    print(path, 'created!')
-
-
-def load_dtypes(path):
-    with open(path, 'rb') as handle:
-        return pickle.load(handle)
-
-
 def typecast_ints(gl_int):
     return gl_int.apply(pd.to_numeric, downcast='unsigned')
 
@@ -61,6 +25,29 @@ def typecast_objects(gl_obj):
         else:
             converted_obj.loc[:, col] = gl_obj[col]
     return converted_obj
+
+
+def downcastDfTypes(df):
+    # downcast integer columns
+    converted_int = typecast_ints(df.select_dtypes(include=['integer']))
+
+    # downcast float columns
+    converted_float = typecast_floats(df.select_dtypes(include=['float']))
+
+    # convert object columns to lowercase
+    df_obj = df.select_dtypes(include=['object'])
+    df_obj = df_obj.apply(lambda x: x.str.lower())
+
+    # convert object to category columns
+    # when unique values < 50% of total
+    converted_obj = typecast_objects(df_obj)
+
+    # transform optimized types
+    df[converted_int.columns] = converted_int
+    df[converted_float.columns] = converted_float
+    df[converted_obj.columns] = converted_obj
+
+    return df
 
 
 def save_df(df, path, compression='snappy', use_dictionary=True):
