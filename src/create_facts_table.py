@@ -1,110 +1,159 @@
+import sys
 import numpy as np
 import pandas as pd
 from itertools import islice
-from utils import load_df, save_df, downcastDfTypes
 
 
-def computeSubsetMean(subset, first_element_index):
-    subset_state = subset.at[first_element_index, 'battery_state']
-
-    if subset_state == 'charging':
-        charge_rows = subset[subset['time_diff'] > 0]
-
-        if len(charge_rows.index) == 0:
-            return -1, -1
-        else:
-            return np.nanmean(charge_rows['time_diff']), np.nanstd(charge_rows['time_diff'])
-
-    elif subset_state == 'discharging':
-        discharge_rows = subset[subset['time_diff'] < 0]
-
-        if len(discharge_rows.index) == 0:
-            return -1, -1
-        else:
-            return np.nanmean(discharge_rows['time_diff']), np.nanstd(discharge_rows['time_diff'])
-
+def compare(previous, current, following):
+    if previous < 0 and current > 0 and following > 0:
+        return True
+    if previous > 0 and current < 0 and following < 0:
+        return True
     else:
-        charge_rows = subset[subset['time_diff'] > 0]
-        discharge_rows = subset[subset['time_diff'] < 0]
-
-        if (len(charge_rows) > 0) and (len(charge_rows) > round(len(subset) * 0.9)):
-            return np.nanmean(charge_rows['time_diff']), np.nanstd(charge_rows['time_diff'])
-
-        elif (len(discharge_rows) > 0) and (len(discharge_rows) > round(len(subset) * 0.9)):
-            return np.nanmean(discharge_rows['time_diff']), np.nanstd(discharge_rows['time_diff'])
-
-        else:
-            return -1, -1
+        return False
 
 
-def buildFactsTable(subset, facts_table, previous_index, mean, std):
-    if mean > 0:
-        if 'full' in subset['battery_state'].values:
-            facts_table.loc[-1] = [subset.at[previous_index, 'device_id'],
-                                   subset.at[previous_index, 'time_id'],
-                                   subset.at[previous_index, 'service_comb_id'], -1, mean, 1, std]
-            facts_table.index = facts_table.index + 1
+def createFactsTable(Dataset_Path):
+    # ------------------------------ recives dataset folder path and load csv files to one big joined df ------------------------------
+    cols = ['sample_id', 'charger']
+    df_battery = pd.read_csv(Dataset_Path + '\\battery_details.csv', usecols=cols)
 
-        else:
-            facts_table.loc[-1] = [subset.at[previous_index, 'device_id'],
-                                   subset.at[previous_index, 'time_id'],
-                                   subset.at[previous_index, 'service_comb_id'], -1,  mean, 0, std]
-            facts_table.index = facts_table.index + 1
-    else:
-        facts_table.loc[-1] = [subset.at[previous_index, 'device_id'],
-                               subset.at[previous_index, 'time_id'],
-                               subset.at[previous_index, 'service_comb_id'], abs(mean), -1, -1, std]
-        facts_table.index = facts_table.index + 1
+    cols = ['id', 'device_id', 'timestamp', 'battery_state', 'battery_level', 'screen_on']
+    df_samples = pd.read_csv(Dataset_Path + '\samples.csv', usecols=cols, parse_dates=['timestamp'])
 
+    cols = ['sample_id', 'bluetooth_enabled', 'location_enabled', 'power_saver_enabled', 'flashlight_enabled', 'nfc_enabled', 'developer_mode']
+    df_settings = pd.read_csv(Dataset_Path + '\settings.csv', usecols=cols)
 
-def computeSubsets(samples_df, facts_table):
-    previous_index = 1
+    df_samples.rename(columns={"id": "sample_id"}, inplace=True)
 
-    for ind, v in islice(samples_df['time_diff'].iteritems(), 1, None):
-        if np.isnan(v):
-            subset = samples_df[previous_index:ind].copy()
+    merged_df = df_samples.merge(df_battery, on='sample_id', how='inner')
+    merged_df = merged_df.merge(df_settings, on='sample_id', how='inner')
+    merged_df = merged_df[merged_df.timestamp >= pd.Timestamp('2017-10-15')]
 
-            if len(subset) >= 10:
-                subset.loc[abs(subset['time_diff']) > 3600, 'time_diff'] = None
-                mean, std = computeSubsetMean(subset, previous_index)
+    merged_df.drop('sample_id', axis=1, inplace=True)
 
-                if (mean != -1) and not np.isnan(mean):
-                    buildFactsTable(subset, facts_table, previous_index, mean, std)
+    print('Samples df created...')
+    # ------------------------------ cleaning data and pre computing new information (delta_battery_level, delta_time) ------------------------------
+    sorted_samples = merged_df.sort_values(by=['device_id', 'timestamp']).reset_index(drop=True)
+    sorted_samples['delta_battery_level'] = sorted_samples.battery_level.diff()
+    sorted_samples['delta_time'] = round((sorted_samples.timestamp.diff().dt.seconds) / 3600, 2)
+    sorted_samples.loc[sorted_samples.device_id != sorted_samples.device_id.shift(), 'delta_battery_level'] = None
+    sorted_samples = sorted_samples.drop(sorted_samples[sorted_samples.delta_battery_level == 0].index)
+    sorted_samples.reset_index(drop=True, inplace=True)
+    print('Samples df cleanned...')
 
-            previous_index = ind
+    # ------------------------------  pre computing new information (period) ------------------------------
+    sorted_samples['period'] = pd.NaT
+    sorted_samples.at[0, 'period'] = sorted_samples.at[0, 'timestamp']
 
-    #final samples
-    subset = samples_df[previous_index:len(samples_df)].copy()
+    for ind in islice(sorted_samples.index, 1, len(sorted_samples)-2):
+        if compare(sorted_samples.at[ind-1, 'delta_battery_level'], sorted_samples.at[ind, 'delta_battery_level'], sorted_samples.at[ind+1, 'delta_battery_level']):
+            sorted_samples.at[ind-1, 'period'] = sorted_samples.at[ind-1, 'timestamp']
+            sorted_samples.at[ind, 'period'] = sorted_samples.at[ind, 'timestamp']
 
-    if len(subset) >= 10:
-        subset.loc[abs(subset['time_diff']) > 3600, 'time_diff'] = None
+            sorted_samples.at[ind-1, 'delta_time'] = None
+            sorted_samples.at[ind, 'delta_time'] = None
 
-        mean, std = computeSubsetMean(subset, previous_index)
+    sorted_samples.loc[sorted_samples.device_id != sorted_samples.device_id.shift(), 'period'] = sorted_samples.timestamp
+    sorted_samples.loc[sorted_samples.device_id != sorted_samples.device_id.shift(), 'delta_time'] = None
+    print('Samples df pre calculations finished...')
 
-        if (mean != -1) and not np.isnan(mean):
-            buildFactsTable(subset, facts_table, previous_index, mean, std)
+    # ------------------------------  computing facts table ------------------------------
+    facts_table = pd.DataFrame(columns=['device_id', 'time_diff', 'battery_diff', 'rate', 'charging', 'number_samples',
+                                        'screen_on_time', 'screen_off_time', 'bluetooth_enabled_time', 'location_enabled_time',
+                                        'power_saver_enabled_time', 'flashlight_enabled_time', 'nfc_enabled_time',
+                                        'developer_mode_time'])
 
+    period_times = sorted_samples[sorted_samples.period.notnull()].period
+
+    p_index = period_times.index
+    for i, value in enumerate(period_times):
+        if i%2 != 0:
+            period_final_index = p_index[i]
+            period_first_index = p_index[i-1]
+            period_final_date = value
+            period_first_date = period_times.iloc[i-1]
+
+            period = sorted_samples[period_first_index:period_final_index + 1]
+            diff_time = (period_final_date - period_first_date).seconds / 3600
+
+            if diff_time == 0:
+                continue
+
+            diff_battery = sorted_samples.at[period_final_index, 'battery_level'] - sorted_samples.at[period_first_index, 'battery_level']
+            rate = diff_battery / diff_time
+
+            number_samples = (period_final_index - period_first_index) + 1
+            screen_on_time = period[period.screen_on == 1].delta_time.sum()
+            screen_off_time = diff_time - screen_on_time
+
+            bluetooth_enabled_time = period[period.bluetooth_enabled == 1].delta_time.sum()
+            location_enabled_time = period[period.location_enabled == 1].delta_time.sum()
+            power_saver_enabled_time = period[period.power_saver_enabled == 1].delta_time.sum()
+            flashlight_enabled_time = period[period.flashlight_enabled == 1].delta_time.sum()
+            nfc_enabled_time = period[period.nfc_enabled == 1].delta_time.sum()
+            developer_mode_time = period[period.developer_mode == 1].delta_time.sum()
+
+            diff_time = round(diff_time, 2)
+            diff_battery = round(diff_battery, 2)
+            rate = round(rate, 3)
+            screen_on_time = round(screen_on_time, 2)
+            screen_off_time = round(screen_off_time, 2)
+            bluetooth_enabled_time = round(bluetooth_enabled_time, 2)
+            location_enabled_time = round(location_enabled_time, 2)
+            power_saver_enabled_time = round(power_saver_enabled_time, 2)
+            flashlight_enabled_time = round(flashlight_enabled_time, 2)
+            nfc_enabled_time = round(nfc_enabled_time, 2)
+            developer_mode_time = round(developer_mode_time, 2)
+
+            if rate < 0:
+                facts_table.loc[-1] = [sorted_samples.at[period_first_index, 'device_id'],
+                                       diff_time,
+                                       diff_battery,
+                                       rate,
+                                       False,
+                                       number_samples,
+                                       screen_on_time,
+                                       screen_off_time,
+                                       bluetooth_enabled_time,
+                                       location_enabled_time,
+                                       power_saver_enabled_time,
+                                       flashlight_enabled_time,
+                                       nfc_enabled_time,
+                                       developer_mode_time]
+                facts_table.index = facts_table.index + 1
+            else:
+                facts_table.loc[-1] = [sorted_samples.at[period_first_index, 'device_id'],
+                                       diff_time,
+                                       diff_battery,
+                                       rate,
+                                       True,
+                                       number_samples,
+                                       screen_on_time,
+                                       screen_off_time,
+                                       bluetooth_enabled_time,
+                                       location_enabled_time,
+                                       power_saver_enabled_time,
+                                       flashlight_enabled_time,
+                                       nfc_enabled_time,
+                                       developer_mode_time]
+                facts_table.index = facts_table.index + 1
+
+    facts_table.to_csv('facts_table.csv', encoding='utf-8', index=False)
+    print('Facts Table Created!')
 
 def main():
-    cols= ['device_id', 'service_comb_id', 'time_id', 'timestamp', 'battery_state', 'battery_level', 'time_diff']
-    samples_df = load_df('processed_samples.parquet', cols)
-    facts_table = pd.DataFrame(columns=['device_id','time_id','services_id','discharge_per_unit','charge_per_unit','reach_full', 'standard_dev'])
+    try:
+        if len(sys.argv) == 2:
+            print('Creating Facts Table ...')
+            createFactsTable(sys.argv[1])
+            print('Done!!!\n')
 
-    print('Computing facts table, may take a while...')
-    computeSubsets(samples_df, facts_table)
+        else:
+            raise IOError('Dataset missing!')
 
-    facts_table.device_id = facts_table.device_id.astype(int)
-    facts_table.time_id = facts_table.time_id.astype(int)
-    facts_table.services_id = facts_table.services_id.astype(int)
-    facts_table.discharge_per_unit = facts_table.discharge_per_unit.apply(lambda x: round(x, 2))
-    facts_table.charge_per_unit = facts_table.charge_per_unit.apply(lambda x: round(x, 2))
-    facts_table.reach_full = facts_table.reach_full.astype(int)
-    facts_table.standard_dev = facts_table.standard_dev.apply(lambda x: round(x, 2))
-
-    facts_table = downcastDfTypes(facts_table)
-    facts_table.info(memory_usage='deep')
-
-    save_df(facts_table, 'facts_table.parquet')
+    except Exception as e:
+        print(e)
 
 
 if __name__ == '__main__':
