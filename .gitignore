@@ -139,3 +139,6 @@ config.rst
 /.project
 /.pydevproject
 
+# Datasets
+notebooks/datasets/
+
