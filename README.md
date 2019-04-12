@@ -1,13 +1,15 @@
-# GreenHub DataWarehouse Creation
+# GreenHub Notebooks
 
-Python Scripts for creating datawarehouse (ETL)
+> Data analysis prototyping
 
 ## Prerequesites
-```shell
-$ sudo apt-get install python3.6
-$ pip install pandas
-$ pip install numpy
-$ pip install pyarrow
-```
 
+- Docker
+
+
+## Run
+
+```shell
+$ bash run.sh # deploys jupyter on localhost:8888
+```
 
